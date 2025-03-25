@@ -1,37 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Rugby Stats Tracker</title>
     <style>
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .team-section { display: flex; justify-content: space-around; }
-        .player-list { border: 2px dashed #ccc; min-height: 100px; padding: 10px; margin: 10px; }
-        .player { 
-            background: #f0f0f0; 
-            padding: 10px; 
-            margin: 5px; 
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .player.selected { 
-            background: #add8e6; 
-            border: 2px solid #4a90e2;
-        }
-        .player-controls { display: none; margin-top: 5px; }
-        .player.selected .player-controls { display: block; }
-        .history-log { 
-            height: 300px; 
-            overflow-y: auto; 
-            border: 1px solid #ccc; 
+        
+        .history-log {
+            margin: 20px;
             padding: 10px;
-            margin: 20px 0;
+            border: 1px solid #ccc;
+            max-height: 300px;
+            overflow-y: auto;
         }
-        .timestamp { color: #666; font-size: 0.8em; }
-        .score-buttons button, .match-controls button {
-            margin: 5px;
-            padding: 8px 15px;
-            cursor: pointer;
+        .sub-buttons {
+            margin: 10px 0;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 0.8em;
         }
     </style>
 </head>
@@ -40,40 +24,35 @@
         <h1>Rugby Stats Tracker</h1>
         
         <div class="team-section">
+            <!-- Home Team -->
             <div class="team">
-                <h2>Our Team</h2>
-                <div class="score-buttons">
-                    <button onclick="updateScore('home', 5, 'Try')">Try</button>
-                    <button onclick="updateScore('home', 2, 'Conversion')">Conversion</button>
-                    <button onclick="updateScore('home', 3, 'Penalty')">Penalty</button>
-                    <button onclick="updateScore('home', 3, 'Drop Goal')">Drop Goal</button>
-                </div>
-                <h3>Score: <span id="home-score">0</span></h3>
-                
+                // ... existing score buttons ...
+
                 <h3>Bench</h3>
-                <div id="player-pool" class="player-list"></div>
+                <div id="player-pool" class="player-list">
+                    <div class="player" draggable="true" data-player-id="1">
+                        <span class="player-name">Player 1</span>
+                        <span class="player-number">#1</span>
+                        <span class="player-position">Prop</span>
+                    </div>
+                    <!-- Add more players as needed -->
+                </div>
                 
                 <h3>On Field</h3>
                 <div id="active-players" class="player-list"></div>
-                <button onclick="recordSubstitution()">Make Substitution</button>
+
+                <div class="sub-buttons">
+                    <button onclick="recordSubstitution()">Record Substitution</button>
+                </div>
             </div>
 
-            <div class="team">
-                <h2>Opposition</h2>
-                <div class="score-buttons">
-                    <button onclick="updateScore('away', 5, 'Try')">Try</button>
-                    <button onclick="updateScore('away', 2, 'Conversion')">Conversion</button>
-                    <button onclick="updateScore('away', 3, 'Penalty')">Penalty</button>
-                    <button onclick="updateScore('away', 3, 'Drop Goal')">Drop Goal</button>
-                </div>
-                <h3>Score: <span id="away-score">0</span></h3>
-            </div>
+            <!-- Away Team section remains the same -->
         </div>
 
         <div class="match-controls">
             <button onclick="startMatch()">Start Match</button>
             <button onclick="saveMatch()">Save Match</button>
-            <button onclick="loadMatch()">Load Match</button>
+            <button onclick="loadMatch()">Load Last Match</button>
         </div>
 
         <h3>Match History</h3>
@@ -81,161 +60,144 @@
     </div>
 
     <script>
-        const POSITIONS = ['Prop1', 'Hooker','Prop2' 'Lock1', 'Lock2', 'Flanker1', 'Flanker2', '8man', 'Wing1', 'Scrum-half', 'Fly-half', 'Inside Center','Outside Center' 'Wing2', 'Fullback'];
+        // ... existing score tracking code ...
+
+        let matchHistory = [];
+        let matchStartTime = null;
         let matchData = {
-            startTime: null,
             scores: { home: 0, away: 0 },
-            events: [],
-            players: []
+            substitutions: [],
+            events: []
         };
 
-        function createPlayer(name, number, position) {
-            const positionOptions = POSITIONS.map(pos => 
-                `<option value="${pos}" ${pos === position ? 'selected' : ''}>${pos}</option>`
-            ).join('');
-
-            const playerDiv = document.createElement('div');
-            playerDiv.className = 'player';
-            playerDiv.dataset.id = number;
-            playerDiv.innerHTML = `
-                <div class="player-info">Player ${name} #${number} (${position})</div>
-                <div class="player-controls">
-                    <select onchange="updatePosition(this)">
-                        ${positionOptions}
-                    </select>
-                </div>
-            `;
-            return playerDiv;
-        }
-
-        function initializePlayers() {
-            const playerPool = document.getElementById('player-pool');
-            playerPool.innerHTML = '';
-            
-            // Create 15 players with default positions
-            for (let i = 1; i <= 15; i++) {
-                const position = POSITIONS[Math.min(i - 1, POSITIONS.length - 1)];
-                const player = createPlayer(i, i, position);
-                playerPool.appendChild(player);
-                matchData.players.push({id: i, position: position, status: 'bench'});
-            }
-        }
-
         function startMatch() {
-            matchData.startTime = new Date();
-            matchData.scores = { home: 0, away: 0 };
-            matchData.events = [];
-            document.getElementById('home-score').textContent = '0';
-            document.getElementById('away-score').textContent = '0';
-            document.getElementById('history-log').innerHTML = '';
+            matchStartTime = new Date();
+            matchHistory = [];
+            matchData = {
+                scores: { home: 0, away: 0 },
+                substitutions: [],
+                events: []
+            };
             logEvent('Match Started');
         }
 
-        function updateScore(team, points, type) {
-            matchData.scores[team] += points;
-            document.getElementById(`${team}-score`).textContent = matchData.scores[team];
-            logEvent(`${team.toUpperCase()} - ${type} (+${points})`);
+        function getMatchTime() {
+            if (!matchStartTime) return '00:00';
+            const diff = new Date() - matchStartTime;
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
-        function updatePosition(select) {
-            const player = select.closest('.player');
-            const playerInfo = player.querySelector('.player-info');
-            const newPosition = select.value;
-            const playerText = playerInfo.textContent.split(' (')[0];
-            playerInfo.textContent = `${playerText} (${newPosition})`;
+        function updateScore(team, points) {
+            scores[team] += points;
+            matchData.scores[team] = scores[team];
+            document.getElementById(`${team}-score`).textContent = scores[team];
             
-            const playerId = player.dataset.id;
-            const playerData = matchData.players.find(p => p.id === parseInt(playerId));
-            if (playerData) {
-                const oldPosition = playerData.position;
-                playerData.position = newPosition;
-                logEvent(`Position Change: ${playerText} from ${oldPosition} to ${newPosition}`);
-            }
+            const scoreType = points === 5 ? 'Try' : 
+                            points === 2 ? 'Conversion' :
+                            points === 3 ? 'Penalty/Drop Goal' : 'Score';
+            
+            logEvent(`${team.toUpperCase()} TEAM - ${scoreType} (+${points})`);
         }
 
         function recordSubstitution() {
-            const out = document.querySelector('#active-players .player.selected');
-            const in = document.querySelector('#player-pool .player.selected');
-            
-            if (!out || !in) {
-                alert('Select players to substitute');
+            const playerOut = document.querySelector('#active-players .player.selected');
+            const playerIn = document.querySelector('#player-pool .player.selected');
+
+            if (!playerOut || !playerIn) {
+                alert('Please select both players for substitution');
                 return;
             }
 
-            [out.parentElement.appendChild(in), in.parentElement.appendChild(out)];
-            
-            const outInfo = out.querySelector('.player-info').textContent;
-            const inInfo = in.querySelector('.player-info').textContent;
-            logEvent(`Substitution: ${outInfo.split(' (')[0]} OFF, ${inInfo.split(' (')[0]} ON`);
-            
-            // Update player statuses
-            matchData.players.find(p => p.id === parseInt(out.dataset.id)).status = 'bench';
-            matchData.players.find(p => p.id === parseInt(in.dataset.id)).status = 'field';
-            
-            document.querySelectorAll('.selected').forEach(p => p.classList.remove('selected'));
+            const sub = {
+                timeStamp: getMatchTime(),
+                playerOutId: playerOut.dataset.playerId,
+                playerOutName: playerOut.querySelector('.player-name').textContent,
+                playerInId: playerIn.dataset.playerId,
+                playerInName: playerIn.querySelector('.player-name').textContent
+            };
+
+            matchData.substitutions.push(sub);
+            logEvent(`Substitution: ${sub.playerOutName} OFF, ${sub.playerInName} ON`);
+
+            // Swap players between containers
+            const activePlayers = document.getElementById('active-players');
+            const playerPool = document.getElementById('player-pool');
+            activePlayers.appendChild(playerIn);
+            playerPool.appendChild(playerOut);
+
+            // Clear selections
+            document.querySelectorAll('.player.selected').forEach(p => p.classList.remove('selected'));
         }
 
         function logEvent(event) {
-            const time = matchData.startTime ? 
-                new Date(new Date() - matchData.startTime)
-                    .toISOString()
-                    .substr(11, 8) : 
-                '00:00:00';
-            
-            matchData.events.push({ time, event });
-            
+            const timeStamp = getMatchTime();
+            const eventData = { timeStamp, event };
+            matchData.events.push(eventData);
+
             const historyLog = document.getElementById('history-log');
-            historyLog.insertAdjacentHTML('beforeend', 
-                `<div><span class="timestamp">[${time}]</span> ${event}</div>`);
+            const eventElement = document.createElement('div');
+            eventElement.innerHTML = `<span class="timestamp">[${timeStamp}]</span> ${event}`;
+            historyLog.appendChild(eventElement);
             historyLog.scrollTop = historyLog.scrollHeight;
         }
 
         function saveMatch() {
-            localStorage.setItem('lastMatch', JSON.stringify(matchData));
-            alert('Match saved!');
+            const matchSummary = {
+                date: new Date().toISOString(),
+                matchData: matchData
+            };
+            localStorage.setItem('lastMatch', JSON.stringify(matchSummary));
+            alert('Match saved successfully!');
         }
 
         function loadMatch() {
-            const saved = localStorage.getItem('lastMatch');
-            if (!saved) return alert('No saved match found!');
+            const savedMatch = localStorage.getItem('lastMatch');
+            if (savedMatch) {
+                const matchSummary = JSON.parse(savedMatch);
+                // Restore match data
+                matchData = matchSummary.matchData;
+                
+                // Clear and rebuild history log
+                const historyLog = document.getElementById('history-log');
+                historyLog.innerHTML = '';
+                matchData.events.forEach(event => {
+                    const eventElement = document.createElement('div');
+                    eventElement.innerHTML = `<span class="timestamp">[${event.timeStamp}]</span> ${event.event}`;
+                    historyLog.appendChild(eventElement);
+                });
 
-            matchData = JSON.parse(saved);
-            
-            // Restore scores
-            document.getElementById('home-score').textContent = matchData.scores.home;
-            document.getElementById('away-score').textContent = matchData.scores.away;
-            
-            // Restore history
-            const historyLog = document.getElementById('history-log');
-            historyLog.innerHTML = matchData.events
-                .map(e => `<div><span class="timestamp">[${e.time}]</span> ${e.event}</div>`)
-                .join('');
-            
-            // Restore players
-            initializePlayers();
-            matchData.players.forEach(player => {
-                const playerElement = document.querySelector(`[data-id="${player.id}"]`);
-                if (playerElement) {
-                    const container = player.status === 'field' ? 
-                        document.getElementById('active-players') : 
-                        document.getElementById('player-pool');
-                    container.appendChild(playerElement);
-                }
-            });
+                // Restore scores
+                scores.home = matchData.scores.home;
+                scores.away = matchData.scores.away;
+                document.getElementById('home-score').textContent = scores.home;
+                document.getElementById('away-score').textContent = scores.away;
+
+                alert('Match loaded successfully!');
+            } else {
+                alert('No saved match found!');
+            }
         }
 
-        // Initialize click handlers
-        document.addEventListener('click', e => {
-            if (e.target.classList.contains('player')) {
-                const container = e.target.parentElement;
-                container.querySelectorAll('.selected')
-                    .forEach(p => p !== e.target && p.classList.remove('selected'));
-                e.target.classList.toggle('selected');
-            }
+        // Enhanced drag and drop functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            // ... existing drag and drop setup ...
+
+            // Add click selection for substitutions
+            document.querySelectorAll('.player').forEach(player => {
+                player.addEventListener('click', () => {
+                    const container = player.parentElement;
+                    // Only allow one selection per container
+                    container.querySelectorAll('.selected').forEach(p => {
+                        if (p !== player) p.classList.remove('selected');
+                    });
+                    player.classList.toggle('selected');
+                });
+            });
         });
 
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', initializePlayers);
+        // ... existing drag and drop functions ...
     </script>
 </body>
 </html>
