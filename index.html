@@ -220,21 +220,21 @@
                 return;
             }
             const out = document.querySelector('#active-players .player.selected');
-            const in = document.querySelector('#player-pool .player.selected');
+            const ingame = document.querySelector('#player-pool .player.selected');
             
-            if (!out || !in) {
+            if (!out || !ingame) {
                 alert('Select players to substitute');
                 return;
             }
 
-            [out.parentElement.appendChild(in), in.parentElement.appendChild(out)];
+            [out.parentElement.appendChild(ingame), ingame.parentElement.appendChild(out)];
             
             const outName = out.querySelector('.player-name').textContent;
-            const inName = in.querySelector('.player-name').textContent;
-            logEvent(`Substitution: ${outName} OFF, ${inName} ON`);
+            const ingameName = ingame.querySelector('.player-name').textContent;
+            logEvent(`Substitution: ${outName} OFF, ${ingameName} ON`);
             
             matchData.players.find(p => p.id === parseInt(out.dataset.id)).status = 'bench';
-            matchData.players.find(p => p.id === parseInt(in.dataset.id)).status = 'field';
+            matchData.players.find(p => p.id === parseInt(ingame.dataset.id)).status = 'field';
             
             document.querySelectorAll('.selected').forEach(p => p.classList.remove('selected'));
         }
